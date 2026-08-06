@@ -4,11 +4,9 @@ import {
   saveTransactions, 
   loadCategories, 
   saveCategories, 
-  getInitialMockTransactions,
   filterAndSortTransactions,
   computeFinancialSummary,
-  getCategoryBudgets,
-  DEFAULT_CATEGORIES
+  getCategoryBudgets
 } from './actions/transactions';
 import { Transaction, Category, FilterOptions, CategoryBudget } from './types/database.types';
 import { Header } from './components/Header';
@@ -18,6 +16,79 @@ import { TransactionForm } from './components/TransactionForm';
 import { BudgetManager } from './components/BudgetManager';
 import { AnalyticsCharts } from './components/AnalyticsCharts';
 import { jsonDictionaries, Locale } from './lib/i18n';
+import { supabase } from './lib/supabase/client';
+
+const LoginPage = () => (
+  <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+    <LoginForm />
+  </div>
+);
+
+const LoginForm = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
+    
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+      
+      if (error) throw error;
+      
+      window.location.href = '/';
+    } catch (err: any) {
+      setError(err.message || 'Erro ao fazer login');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+      <form className="w-full max-w-xs space-y-4 bg-slate-800 p-6 rounded-lg" onSubmit={handleSubmit}>
+        <h2 className="text-2xl font-bold text-center text-emerald-500 mb-6">Login</h2>
+        
+        {error && <p className="text-red-400 text-center">{error}</p>}
+        
+        <div className="space-y-3">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            required
+          />
+          
+          <input
+            type="password"
+            placeholder="Senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            required
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+        >
+          {isSubmitting ? 'Entrando...' : 'Entrar'}
+        </button>
+      </form>
+    </div>
+  );
+};
 
 export default function App() {
   const [locale, setLocale] = useState<Locale>('pt-BR');
@@ -29,7 +100,6 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-  // Filters State
   const [filters, setFilters] = useState<FilterOptions>({
     search: '',
     type: 'all',
@@ -43,14 +113,24 @@ export default function App() {
     sortOrder: 'desc',
   });
 
-  // Load initial data on mount
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      setIsLoading(false);
+    };
+    checkAuth();
+  }, []);
+
   useEffect(() => {
     const loadedTx = loadTransactions();
     const loadedCat = loadCategories();
     setTransactions(loadedTx);
     setCategories(loadedCat);
 
-    // Attempt Supabase fetch if configured
     import('./actions/transactions').then(({ fetchSupabaseTransactions }) => {
       fetchSupabaseTransactions().then((remoteTx) => {
         if (remoteTx && remoteTx.length > 0) {
@@ -59,6 +139,14 @@ export default function App() {
       });
     });
   }, []);
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-white">Loading...</div></div>;
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   // Filtered transactions for list view
   const filteredTransactions = useMemo(() => {
@@ -100,16 +188,6 @@ export default function App() {
       const updated = transactions.filter((t) => t.id !== id);
       setTransactions(updated);
       saveTransactions(updated);
-    }
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Reset all transaction records to sample demo data?')) {
-      const initial = getInitialMockTransactions();
-      setTransactions(initial);
-      saveTransactions(initial);
-      setCategories(DEFAULT_CATEGORIES);
-      saveCategories(DEFAULT_CATEGORIES);
     }
   };
 
@@ -167,7 +245,6 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAddModal={handleOpenAddModal}
-        onResetData={handleResetData}
         onExportCSV={handleExportCSV}
         totalBalance={financialSummary.totalBalance}
         currentLocale={locale}

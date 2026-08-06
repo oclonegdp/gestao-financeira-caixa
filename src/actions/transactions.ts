@@ -351,14 +351,12 @@ export const loadTransactions = (): Transaction[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
     if (!raw) {
-      const initial = getInitialMockTransactions();
-      localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(initial));
-      return initial;
+      return [];
     }
     return JSON.parse(raw);
   } catch (err) {
     console.error('Failed to load transactions from localStorage', err);
-    return getInitialMockTransactions();
+    return [];
   }
 };
 
@@ -374,12 +372,11 @@ export const loadCategories = (): Category[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CATEGORIES);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
-      return DEFAULT_CATEGORIES;
+      return [];
     }
     return JSON.parse(raw);
   } catch (err) {
-    return DEFAULT_CATEGORIES;
+    return [];
   }
 };
 
