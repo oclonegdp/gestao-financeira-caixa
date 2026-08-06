@@ -1,0 +1,34 @@
+{
+  "title": "Gestão Financeira & Caixa",
+  "subtitle": "Controle de produções caseiras e fluxo diário",
+  "summary": {
+    "income": "Total de Entradas",
+    "expense": "Total de Saídas / Custos",
+    "balance": "Saldo em Caixa"
+  },
+  "form": {
+    "title": "Novo Lançamento",
+    "type": "Tipo",
+    "incomeOption": "Entrada (Receita)",
+    "expenseOption": "Saída (Despesa/Custo)",
+    "amount": "Valor (R$)",
+    "category": "Categoria",
+    "categoryPlaceholder": "Ex: Ingredientes, Vendas, Embalagens",
+    "description": "Descrição (Opcional)",
+    "descriptionPlaceholder": "Ex: Compra de 5kg de chocolate",
+    "submit": "Salvar Lançamento",
+    "submitting": "Salvando..."
+  },
+  "list": {
+    "searchPlaceholder": "Filtrar por categoria ou descrição...",
+    "all": "Todos",
+    "incomes": "Entradas",
+    "expenses": "Saídas",
+    "date": "Data",
+    "typeHeader": "Tipo",
+    "categoryHeader": "Categoria",
+    "descriptionHeader": "Descrição",
+    "amountHeader": "Valor",
+    "empty": "Nenhum lançamento encontrado."
+  }
+}

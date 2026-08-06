@@ -1,0 +1,34 @@
+{
+  "title": "Financial Management & Cash Flow",
+  "subtitle": "Control for homemade productions and daily cash",
+  "summary": {
+    "income": "Total Income",
+    "expense": "Total Expenses / Costs",
+    "balance": "Cash Balance"
+  },
+  "form": {
+    "title": "New Transaction",
+    "type": "Type",
+    "incomeOption": "Income (Revenue)",
+    "expenseOption": "Expense (Cost)",
+    "amount": "Amount ($)",
+    "category": "Category",
+    "categoryPlaceholder": "Ex: Ingredients, Sales, Packaging",
+    "description": "Description (Optional)",
+    "descriptionPlaceholder": "Ex: Purchase of 5kg chocolate",
+    "submit": "Save Transaction",
+    "submitting": "Saving..."
+  },
+  "list": {
+    "searchPlaceholder": "Filter by category or description...",
+    "all": "All",
+    "incomes": "Incomes",
+    "expenses": "Expenses",
+    "date": "Date",
+    "typeHeader": "Type",
+    "categoryHeader": "Category",
+    "descriptionHeader": "Description",
+    "amountHeader": "Amount",
+    "empty": "No transactions found."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Gestão Financeira & Caixa",
+  "description": "Sistema completo de Gestão Financeira e Controle de Caixa com suporte bilíngue (PT/EN), resumo financeiro, extrato, orçamentos, relatórios analíticos e Supabase SSR.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
