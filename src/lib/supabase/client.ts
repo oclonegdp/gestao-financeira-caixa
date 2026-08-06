@@ -1,9 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../../types/database.types';
 
-const env = (import.meta as unknown as { env?: Record<string, string> }).env || {};
-const supabaseUrl = env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
@@ -14,24 +13,17 @@ export const isSupabaseConfigured = (): boolean => {
   );
 };
 
-let clientInstance: SupabaseClient<Database> | null = null;
+const dummyClient = new Proxy({} as SupabaseClient<Database>, {
+  get: () => () => { throw new Error('Supabase não configurado'); },
+});
+
+export const supabase: SupabaseClient<Database> = 
+  supabaseUrl && supabaseAnonKey
+    ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: true, autoRefreshToken: true },
+      })
+    : dummyClient;
 
 export const getSupabaseClient = (): SupabaseClient<Database> | null => {
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-  if (!clientInstance) {
-    clientInstance = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    });
-  }
-  return clientInstance;
+  return isSupabaseConfigured() ? supabase : null;
 };
-
-// Export singleton supabase instance (or dummy fallback if unconfigured)
-export const supabase = isSupabaseConfigured()
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey)
-  : null;
