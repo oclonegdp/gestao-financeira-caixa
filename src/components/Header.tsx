@@ -4,7 +4,6 @@ import {
   Plus, 
   Download, 
   Upload, 
-  RotateCcw, 
   TrendingUp, 
   PieChart as PieIcon,
   List,
@@ -15,8 +14,8 @@ interface HeaderProps {
   activeTab: 'summary' | 'transactions' | 'budgets' | 'analytics';
   setActiveTab: (tab: 'summary' | 'transactions' | 'budgets' | 'analytics') => void;
   onOpenAddModal: () => void;
-  onResetData: () => void;
   onExportCSV: () => void;
+  onLogout: () => void;
   totalBalance: number;
   currentLocale?: string;
   onLocaleChange?: (locale: string) => void;
@@ -27,8 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
   onOpenAddModal,
-  onResetData,
   onExportCSV,
+  onLogout,
   totalBalance,
   currentLocale = 'pt-BR',
   onLocaleChange = (_locale: string) => {},
@@ -96,13 +95,12 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             <button
-              id="reset-data-btn"
-              onClick={onResetData}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium transition-colors cursor-pointer"
-              title="Reset Sample Demo Data"
+              id="logout-btn"
+              onClick={onLogout}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-medium transition-colors cursor-pointer"
+              title="Logout"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Reset Demo</span>
+              <span className="hidden sm:inline">Sair</span>
             </button>
 
             <button

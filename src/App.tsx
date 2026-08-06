@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { 
   loadTransactions, 
   saveTransactions, 
@@ -16,81 +17,13 @@ import { TransactionForm } from './components/TransactionForm';
 import { BudgetManager } from './components/BudgetManager';
 import { AnalyticsCharts } from './components/AnalyticsCharts';
 import { jsonDictionaries, Locale } from './lib/i18n';
-import { supabase } from './lib/supabase/client';
 
-const LoginPage = () => (
-  <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-    <LoginForm />
-  </div>
-);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const LoginForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError('');
-    
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
-      
-      if (error) throw error;
-      
-      window.location.href = '/';
-    } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-      <form className="w-full max-w-xs space-y-4 bg-slate-800 p-6 rounded-lg" onSubmit={handleSubmit}>
-        <h2 className="text-2xl font-bold text-center text-emerald-500 mb-6">Login</h2>
-        
-        {error && <p className="text-red-400 text-center">{error}</p>}
-        
-        <div className="space-y-3">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            required
-          />
-          
-          <input
-            type="password"
-            placeholder="Senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-700 text-white rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            required
-          />
-        </div>
-        
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Entrando...' : 'Entrar'}
-        </button>
-      </form>
-    </div>
-  );
-};
-
-export default function App() {
+function App() {
+  // 1. TODOS OS HOOKS DEVEM SER DECLARADOS NO TOPO
   const [locale, setLocale] = useState<Locale>('pt-BR');
   const dict = jsonDictionaries[locale] || jsonDictionaries['pt-BR'];
 
@@ -113,16 +46,27 @@ export default function App() {
     sortOrder: 'desc',
   });
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
 
+  // 2. useEffect DECLARATIONS
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-      setIsLoading(false);
+      setSession(session);
+      setAuthLoading(false);
     };
     checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -140,37 +84,45 @@ export default function App() {
     });
   }, []);
 
-  if (isLoading) {
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-white">Loading...</div></div>;
-  }
-
-  if (!isAuthenticated) {
-    return <LoginPage />;
-  }
-
-  // Filtered transactions for list view
+  // 3. useMemo CALCULATIONS
   const filteredTransactions = useMemo(() => {
     return filterAndSortTransactions(transactions, filters);
   }, [transactions, filters]);
 
-  // Financial summary calculated over all transactions
   const financialSummary = useMemo(() => {
     return computeFinancialSummary(transactions, categories);
   }, [transactions, categories]);
 
-  // Budget data
   const categoryBudgets = useMemo(() => {
     return getCategoryBudgets(transactions, categories);
   }, [transactions, categories]);
 
-  // Save changes to localStorage whenever transactions change
+  // 4. HANDLER FUNCTIONS
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setAuthError(err.message || 'Erro ao fazer login');
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
   const handleSaveTransaction = (txData: Omit<Transaction, 'id'> & { id?: string }) => {
     let updated: Transaction[];
     if (txData.id) {
-      // Edit existing
       updated = transactions.map((t) => (t.id === txData.id ? ({ ...txData, id: txData.id } as Transaction) : t));
     } else {
-      // Add new
       const newTx: Transaction = {
         ...txData,
         id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -237,24 +189,83 @@ export default function App() {
     setIsModalOpen(true);
   };
 
+  // 5. CONDITIONAL RETURNS AFTER ALL HOOKS
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
+        <div className="w-full max-w-md rounded-2xl bg-slate-900 p-8 shadow-2xl border border-slate-800">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-white">Gestão Financeira & Caixa</h1>
+            <p className="text-sm text-slate-400 mt-1">Faça login para acessar o painel</p>
+          </div>
+
+          {authError && (
+            <div className="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-400 border border-red-500/20">
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">E-mail</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-lg bg-slate-950 border border-slate-800 px-4 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
+                placeholder="seu@email.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Senha</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg bg-slate-950 border border-slate-800 px-4 py-2.5 text-white focus:border-emerald-500 focus:outline-none"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-emerald-600 py-3 font-semibold text-white transition hover:bg-emerald-500 focus:outline-none"
+            >
+              Entrar no Sistema
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
-      
-      {/* Header & Navigation Bar */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAddModal={handleOpenAddModal}
         onExportCSV={handleExportCSV}
+        onLogout={handleLogout}
         totalBalance={financialSummary.totalBalance}
         currentLocale={locale}
         onLocaleChange={(loc) => setLocale(loc as Locale)}
         dict={dict}
       />
 
-      {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
+        {/* Main Content Area */}
         {activeTab === 'summary' && (
           <FinancialSummary
             summary={financialSummary}
@@ -295,10 +306,8 @@ export default function App() {
             categories={categories}
           />
         )}
-
       </main>
 
-      {/* Add / Edit Transaction Modal */}
       <TransactionForm
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -307,7 +316,8 @@ export default function App() {
         categories={categories}
         dict={dict}
       />
-
     </div>
   );
 }
+
+export default App;
