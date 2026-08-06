@@ -30,25 +30,31 @@ export async function createTransaction(prevState: ActionResponse, formData: For
     return { success: false, message: issue ? issue.message : 'Dados inválidos' };
   }
 
-  if (supabase) {
+    if (supabase) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { error: insertError } = await (supabase.from('transactions') as any).insert({
-          user_id: user.id,
-          amount: validation.data.amount,
-          type: validation.data.type,
-          category: validation.data.category,
-          description: validation.data.description || null,
-        });
-
-        if (insertError) {
-          return { success: false, message: 'Erro ao registrar no banco de dados.' };
-        }
-        return { success: true, message: 'Lançamento registrado com sucesso!' };
+      
+      if (!user) {
+        console.warn('createTransaction: No authenticated user found');
+        return { success: false, message: 'Usuário não autenticado. Faça login novamente.' };
       }
-    } catch {
-      // Fall through to local save if auth check fails or unauthenticated
+
+      const { error: insertError } = await (supabase.from('transactions') as any).insert({
+        user_id: user.id,
+        amount: validation.data.amount,
+        type: validation.data.type,
+        category: validation.data.category,
+        description: validation.data.description || null,
+      });
+
+      if (insertError) {
+        console.error('Supabase insert error:', insertError.message);
+        return { success: false, message: `Erro ao registrar: ${insertError.message}` };
+      }
+      return { success: true, message: 'Lançamento registrado com sucesso!' };
+    } catch (err) {
+      console.error('Unexpected error during Supabase insert:', err);
+      // Fall through to local save
     }
   }
 
