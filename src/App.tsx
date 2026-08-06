@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { 
   loadTransactions, 
   saveTransactions, 
@@ -17,10 +16,7 @@ import { TransactionForm } from './components/TransactionForm';
 import { BudgetManager } from './components/BudgetManager';
 import { AnalyticsCharts } from './components/AnalyticsCharts';
 import { jsonDictionaries, Locale } from './lib/i18n';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase, isSupabaseConfigured } from './lib/supabase/client';
 
 function App() {
   // 1. TODOS OS HOOKS DEVEM SER DECLARADOS NO TOPO
@@ -54,35 +50,80 @@ function App() {
 
   // 2. useEffect DECLARATIONS
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setAuthLoading(false);
+      if (isMounted) {
+        setSession(session);
+        setAuthLoading(false);
+      }
     };
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setAuthLoading(false);
+      if (isMounted) {
+        setSession(session);
+        setAuthLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
-    const loadedTx = loadTransactions();
-    const loadedCat = loadCategories();
-    setTransactions(loadedTx);
-    setCategories(loadedCat);
+    let isMounted = true;
+    
+    const loadInitialData = async () => {
+      const loadedTx = loadTransactions();
+      const loadedCat = loadCategories();
+      
+      if (isMounted) {
+        setTransactions(loadedTx);
+        setCategories(loadedCat);
+      }
 
-    import('./actions/transactions').then(({ fetchSupabaseTransactions }) => {
-      fetchSupabaseTransactions().then((remoteTx) => {
-        if (remoteTx && remoteTx.length > 0) {
-          setTransactions(remoteTx);
+      if (isSupabaseConfigured() && session) {
+        try {
+          const { data: remoteTx, error } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false });
+
+          if (isMounted && !error && remoteTx) {
+            if (remoteTx.length > 0) {
+              const formattedTx = remoteTx.map((row) => ({
+                id: row.id,
+                amount: Number(row.amount),
+                type: row.type,
+                category: row.category,
+                description: row.description || '',
+                date: row.created_at ? row.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+                paymentMethod: 'bank_transfer',
+                status: 'completed',
+                user_id: row.user_id,
+              }));
+              setTransactions(formattedTx);
+            } else {
+              setTransactions([]);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load transactions from Supabase:', err);
         }
-      });
-    });
-  }, []);
+      }
+    };
+
+    loadInitialData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
 
   // 3. useMemo CALCULATIONS
   const filteredTransactions = useMemo(() => {
@@ -118,7 +159,7 @@ function App() {
     setSession(null);
   };
 
-  const handleSaveTransaction = (txData: Omit<Transaction, 'id'> & { id?: string }) => {
+  const handleSaveTransaction = async (txData: Omit<Transaction, 'id'> & { id?: string }) => {
     let updated: Transaction[];
     if (txData.id) {
       updated = transactions.map((t) => (t.id === txData.id ? ({ ...txData, id: txData.id } as Transaction) : t));
@@ -133,13 +174,43 @@ function App() {
     setTransactions(updated);
     saveTransactions(updated);
     setEditingTransaction(null);
+
+    // Sync to Supabase if configured and user is authenticated
+    if (isSupabaseConfigured() && session?.user) {
+      try {
+        const { error } = await supabase.from('transactions').insert({
+          user_id: session.user.id,
+          amount: txData.amount,
+          type: txData.type,
+          category: txData.category,
+          description: txData.description || null,
+          date: txData.date || new Date().toISOString().split('T')[0],
+        });
+        
+        if (error) {
+          console.error('Supabase sync error:', error.message);
+        }
+      } catch (err) {
+        console.error('Failed to sync transaction to Supabase:', err);
+      }
+    }
   };
 
-  const handleDeleteTransaction = (id: string) => {
+  const handleDeleteTransaction = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this transaction record?')) {
       const updated = transactions.filter((t) => t.id !== id);
       setTransactions(updated);
       saveTransactions(updated);
+
+      // Delete from Supabase if configured and user is authenticated
+      if (isSupabaseConfigured() && session?.user) {
+        try {
+          const { error } = await supabase.from('transactions').delete().eq('id', id);
+          if (error) console.error('Supabase delete error:', error.message);
+        } catch (err) {
+          console.error('Failed to delete transaction from Supabase:', err);
+        }
+      }
     }
   };
 
