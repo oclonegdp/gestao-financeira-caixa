@@ -9,8 +9,8 @@ interface BudgetManagerProps {
 }
 
 export const BudgetManager: React.FC<BudgetManagerProps> = ({
-  categories,
-  budgets,
+  categories = [],
+  budgets = [],
   onUpdateCategoryBudget,
 }) => {
   const [editingCategory, setEditingCategory] = useState<string | null>(null);

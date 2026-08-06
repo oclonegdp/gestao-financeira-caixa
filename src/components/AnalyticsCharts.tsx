@@ -23,8 +23,8 @@ interface AnalyticsChartsProps {
 }
 
 export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
-  transactions,
-  categories,
+  transactions = [],
+  categories = [],
 }) => {
   
   // 1. Prepare timeline cashflow data (grouped by date)

@@ -33,6 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLocaleChange = (_locale: string) => {},
   dict,
 }) => {
+  const safeTotalBalance = typeof totalBalance === 'number' && !isNaN(totalBalance) ? totalBalance : 0;
+
   return (
     <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -79,8 +81,8 @@ export const Header: React.FC<HeaderProps> = ({
 
             <div className="bg-slate-800/80 border border-slate-700/60 rounded-xl px-3.5 py-1.5 flex items-center space-x-2">
               <span className="text-xs text-slate-400 font-medium">Net Balance:</span>
-              <span className={`text-sm font-bold ${totalBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                ${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className={`text-sm font-bold ${safeTotalBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                ${safeTotalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 
