@@ -214,12 +214,54 @@ function App() {
     }
   };
 
-  const handleUpdateCategoryBudget = (categoryName: string, newBudget: number) => {
+  const handleUpdateCategoryBudget = async (categoryName: string, newBudget: number) => {
     const updated = categories.map((c) =>
       c.name === categoryName ? { ...c, monthlyBudget: newBudget } : c
     );
     setCategories(updated);
     saveCategories(updated);
+
+    // Sync to Supabase if configured and user is authenticated
+    if (isSupabaseConfigured() && session?.user) {
+      try {
+        const { error } = await supabase
+          .from('categories')
+          .update({ monthly_budget: newBudget })
+          .eq('name', categoryName)
+          .eq('user_id', session.user.id);
+
+        if (error) {
+          console.error('Supabase category budget sync error:', error.message);
+        }
+      } catch (err) {
+        console.error('Failed to sync category budget to Supabase:', err);
+      }
+    }
+  };
+
+  const handleUpdateCategoryName = async (oldName: string, newName: string) => {
+    const updated = categories.map((c) =>
+      c.name === oldName ? { ...c, name: newName } : c
+    );
+    setCategories(updated);
+    saveCategories(updated);
+
+    // Sync to Supabase if configured and user is authenticated
+    if (isSupabaseConfigured() && session?.user) {
+      try {
+        const { error } = await supabase
+          .from('categories')
+          .update({ name: newName })
+          .eq('name', oldName)
+          .eq('user_id', session.user.id);
+
+        if (error) {
+          console.error('Supabase category name sync error:', error.message);
+        }
+      } catch (err) {
+        console.error('Failed to sync category name to Supabase:', err);
+      }
+    }
   };
 
   const handleExportCSV = () => {
@@ -368,6 +410,8 @@ function App() {
             categories={categories}
             budgets={categoryBudgets}
             onUpdateCategoryBudget={handleUpdateCategoryBudget}
+            onUpdateCategoryName={handleUpdateCategoryName}
+            dict={dict}
           />
         )}
 
